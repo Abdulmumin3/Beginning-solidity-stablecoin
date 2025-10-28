@@ -5,7 +5,8 @@ pragma solidity 0.8.28;
 import {Stablecoin} from "./Stablecoin.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {AggregatorV3Interface} from "@chainlink/contracts/shared/interfaces/AggregatorV3Interface.sol";
+import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
+
 
 contract StablecoinSkeleton is ReentrancyGuard {
     error StablecoinSkeleton_NeedsMoreThanZero();
@@ -52,7 +53,7 @@ contract StablecoinSkeleton is ReentrancyGuard {
     }
 
     function depositCollateralAndMintSBT(address tokenCollateralAddress, uint256 amountCollateral, uint256 amountSBTtoMint) external {
-        depositCollateral(tokenCollateralAddress, amountCollateral);
-        mintSBT(amountSBTtoMint);
+        // depositCollateral(tokenCollateralAddress, amountCollateral);
+        // mintSBT(amountSBTtoMint);
     }
 }

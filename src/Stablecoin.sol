@@ -11,7 +11,9 @@ contract Stablecoin is ERC20Burnable, Ownable {
     error Stablecoin_NoMintingtoZeroAddress();
     error Stablecoin_AmountMustBeMoreThanZero();
 
-    constructor () ERC20("Stablecoin", "SBT") {}
+    constructor() ERC20("Stablecoin", "SBT") Ownable(msg.sender) {}
+
+    // constructor () ERC20("Stablecoin", "SBT") {}
 
     function burn(uint256 _amount) public override onlyOwner {
         uint256 balance = balanceOf(msg.sender);
@@ -20,21 +22,21 @@ contract Stablecoin is ERC20Burnable, Ownable {
             revert Stablecoin_MustBeMoreThanZero();
         }
 
-        if(balance < amount) {
+        if(balance < _amount) {
             revert Stablecoin_BurnMoreThanBalance();
         }
 
         super.burn(_amount);
     }
 
-    function mint(address _to, uint256 _amount) external onlyOwner returns bool{
+    function mint(address _to, uint256 _amount) external onlyOwner returns (bool){
 
         if(_to == address(0)){
             revert Stablecoin_NoMintingtoZeroAddress();
         }
 
         if(_amount == 0) {
-            revert Stablecoin__AmountMustBeMoreThanZero();
+            revert Stablecoin_AmountMustBeMoreThanZero();
         }
 
         _mint(_to, _amount);
