@@ -1,0 +1,29 @@
+name: Daily Auto Push (even if no changes)
+
+on:
+  schedule:
+    - cron: "0 13 * * *" # Runs once daily at 1 PM UTC
+  workflow_dispatch:       # Allows manual trigger too
+
+jobs:
+  auto_push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "olawale"
+          git config --global user.email "abdulmumeenadesoye19@gmail.com"
+
+      - name: Force daily commit
+        run: |
+          echo "Last automated commit: $(date)" > .last_autopush.txt
+          git add .last_autopush.txt
+          git commit -m "Daily auto push $(date '+%Y-%m-%d %H:%M:%S')" 
+          git push origin HEAD:main
+
