@@ -27,6 +27,7 @@ contract StablecoinSkeleton is ReentrancyGuard {
     Stablecoin immutable i_stablecoin;
     
     event CollateralDeposited(address indexed user, address indexed token, uint256 indexed amount);
+    event CollateralRedeemed(address indexed user, address indexed token, uint256 indexed amount);
 
     modifier collateralMoreThanZero(uint256 _amount) {
         if(_amount == 0) {
@@ -57,7 +58,7 @@ contract StablecoinSkeleton is ReentrancyGuard {
         mintSBT(amountSBTtoMint);
     }
 
-    function depositCollateral(address _tokenCollateralAddress, uint256 _amountCollateral) public collateralMoreThanZero(_amountOfCollateral) isAllowedToken(_tokenCollateralAddress) nonReentrant {
+    function depositCollateral(address _tokenCollateralAddress, uint256 _amountCollateral) public collateralMoreThanZero(_amountCollateral) isAllowedToken(_tokenCollateralAddress) nonReentrant {
         s_collateralDeposit[msg.sender][_tokenCollateralAddress] += _amountCollateral;
         emit CollateralDeposited(msg.sender, _tokenCollateralAddress, _amountCollateral);
         bool success = IERC20(_tokenCollateralAddress).transferFrom(msg.sender, address(this), _amountCollateral);
@@ -86,12 +87,12 @@ contract StablecoinSkeleton is ReentrancyGuard {
         bool minted = i_stablecoin.mint(msg.sender, amountSBTToBeMinted);
 
         if(!minted) {
-            revert StablecoinSkeleton__MintingFailed();
+            revert StablecoinSkeleton_MintingFailed();
         }
     }
 
     function burnSBT(uint256 _amount) public collateralMoreThanZero(_amount) {
-        s_SBTMinted[msg.sender] -= amount;
+        s_SBTMinted[msg.sender] -= _amount;
         bool success = i_stablecoin.transferFrom(msg.sender, address(this), _amount);
         if(!success){
             revert StablecoinSkeleton_TransferFailed();
@@ -106,7 +107,7 @@ contract StablecoinSkeleton is ReentrancyGuard {
         uint256 startingUserHealthFactor = healthFactor(_user);
 
         if(startingUserHealthFactor >= 1e18) {
-            revert StablecoinSkeleton__HealthFactorIsFine();
+            revert StablecoinSkeleton_HealthFactorIsFine();
         }
 
         uint256 tokenAmountFromDebtCovered = getUSDValue(_collateral, debtToCover);
@@ -119,13 +120,13 @@ contract StablecoinSkeleton is ReentrancyGuard {
     function _redeemCollateral(address AddressforTokenCollateral, uint256 amountofCollateral, address from, address to) private {}
 
     function getAccountInformation(address user) private view returns(uint256 totalSBTMinted, uint256 collateralValueInUSD) {
-        totalSBTMinted = s_SBTminted[user];
+        totalSBTMinted = s_SBTMinted[user];
         collateralValueInUSD = getAccountCollateralValue(user);
     }
 
     function healthFactor(address _user) private view returns(uint256) {
         (uint256 totalSBTMinted, uint256 collateralValueInUSD) = getAccountInformation(_user);
-        uint256 collateralAdjustedForThreshold = (collateralValueInUSD * LIQUIDITATION_THRESHOLD) / 100;
+        uint256 collateralAdjustedForThreshold = (collateralValueInUSD * LIQUIDATION_THRESHOLD) / 100;
         return (collateralAdjustedForThreshold * 1e10) / totalSBTMinted;
     }
 
@@ -133,7 +134,7 @@ contract StablecoinSkeleton is ReentrancyGuard {
         uint256 userHealthFactor = healthFactor(user);
 
         if(userHealthFactor < 1) {
-            revert StablecoinSkeleton__BreaksHealthFactor(userHealthFactor);
+            revert StablecoinSkeleton_BreaksHealthFactor(userHealthFactor);
         }
     }
     
