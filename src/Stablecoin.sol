@@ -18,24 +18,23 @@ contract Stablecoin is ERC20Burnable, Ownable {
     function burn(uint256 _amount) public override onlyOwner {
         uint256 balance = balanceOf(msg.sender);
 
-        if(_amount == 0) {
+        if (_amount == 0) {
             revert Stablecoin_MustBeMoreThanZero();
         }
 
-        if(balance < _amount) {
+        if (balance < _amount) {
             revert Stablecoin_BurnMoreThanBalance();
         }
 
         super.burn(_amount);
     }
 
-    function mint(address _to, uint256 _amount) external onlyOwner returns (bool){
-
-        if(_to == address(0)){
+    function mint(address _to, uint256 _amount) external onlyOwner returns (bool) {
+        if (_to == address(0)) {
             revert Stablecoin_NoMintingtoZeroAddress();
         }
 
-        if(_amount == 0) {
+        if (_amount == 0) {
             revert Stablecoin_AmountMustBeMoreThanZero();
         }
 

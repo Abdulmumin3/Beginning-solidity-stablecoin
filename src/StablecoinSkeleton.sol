@@ -7,7 +7,6 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 
-
 contract StablecoinSkeleton is ReentrancyGuard {
     error StablecoinSkeleton_NeedsMoreThanZero();
     error StablecoinSkeleton_TokenAddressesAndPriceFeedAddressesMustBeSameLength();
@@ -25,27 +24,29 @@ contract StablecoinSkeleton is ReentrancyGuard {
     address[] s_collateralTokens;
 
     Stablecoin immutable i_stablecoin;
-    
+
     event CollateralDeposited(address indexed user, address indexed token, uint256 indexed amount);
     event CollateralRedeemed(address indexed user, address indexed token, uint256 indexed amount);
 
     modifier collateralMoreThanZero(uint256 _amount) {
-        if(_amount == 0) {
+        if (_amount == 0) {
             revert StablecoinSkeleton_NeedsMoreThanZero();
-        }_;
+        }
+        _;
     }
 
     modifier isAllowedToken(address token) {
-        if(s_priceFeed[token] == address(0)) {
+        if (s_priceFeed[token] == address(0)) {
             revert StablecoinSkeleton_NotAllowedToken();
-        }_;
+        }
+        _;
     }
 
-    constructor (address[] memory tokenAddresses, address[] memory priceFeedAddresses, address stableCoinAddress) {
-        if(tokenAddresses.length != priceFeedAddresses.length) {
+    constructor(address[] memory tokenAddresses, address[] memory priceFeedAddresses, address stableCoinAddress) {
+        if (tokenAddresses.length != priceFeedAddresses.length) {
             revert StablecoinSkeleton_TokenAddressesAndPriceFeedAddressesMustBeSameLength();
         }
-        
+
         for (uint256 i = 0; i < tokenAddresses.length; i++) {
             s_priceFeed[tokenAddresses[i]] = priceFeedAddresses[i];
             s_collateralTokens.push(tokenAddresses[i]);
@@ -53,30 +54,45 @@ contract StablecoinSkeleton is ReentrancyGuard {
         i_stablecoin = Stablecoin(stableCoinAddress);
     }
 
-    function depositCollateralAndMintSBT(address tokenCollateralAddress, uint256 amountCollateral, uint256 amountSBTtoMint) external {
+    function depositCollateralAndMintSBT(
+        address tokenCollateralAddress,
+        uint256 amountCollateral,
+        uint256 amountSBTtoMint
+    ) external {
         depositCollateral(tokenCollateralAddress, amountCollateral);
         mintSBT(amountSBTtoMint);
     }
 
-    function depositCollateral(address _tokenCollateralAddress, uint256 _amountCollateral) public collateralMoreThanZero(_amountCollateral) isAllowedToken(_tokenCollateralAddress) nonReentrant {
+    function depositCollateral(address _tokenCollateralAddress, uint256 _amountCollateral)
+        public
+        collateralMoreThanZero(_amountCollateral)
+        isAllowedToken(_tokenCollateralAddress)
+        nonReentrant
+    {
         s_collateralDeposit[msg.sender][_tokenCollateralAddress] += _amountCollateral;
         emit CollateralDeposited(msg.sender, _tokenCollateralAddress, _amountCollateral);
         bool success = IERC20(_tokenCollateralAddress).transferFrom(msg.sender, address(this), _amountCollateral);
-        if(!success) {
+        if (!success) {
             revert StablecoinSkeleton_TransferFailed();
         }
     }
 
-    function redeemCollateralForSBT(address tokenCollateralAddress, uint256 amountCollateral, uint256 amountSBTtoburn) external {
+    function redeemCollateralForSBT(address tokenCollateralAddress, uint256 amountCollateral, uint256 amountSBTtoburn)
+        external
+    {
         burnSBT(amountSBTtoburn);
         redeemCollateral(tokenCollateralAddress, amountCollateral);
     }
 
-    function redeemCollateral(address tokenCollateralAddress, uint256 amountOfCollateral) public collateralMoreThanZero(amountOfCollateral) nonReentrant {
+    function redeemCollateral(address tokenCollateralAddress, uint256 amountOfCollateral)
+        public
+        collateralMoreThanZero(amountOfCollateral)
+        nonReentrant
+    {
         s_collateralDeposit[msg.sender][tokenCollateralAddress] -= amountOfCollateral;
         emit CollateralRedeemed(msg.sender, tokenCollateralAddress, amountOfCollateral);
         bool success = IERC20(tokenCollateralAddress).transfer(msg.sender, amountOfCollateral);
-        if(!success) {
+        if (!success) {
             revert StablecoinSkeleton_TransferFailed();
         }
     }
@@ -86,7 +102,7 @@ contract StablecoinSkeleton is ReentrancyGuard {
         revertIfHealthFactorDoesNotWork(msg.sender);
         bool minted = i_stablecoin.mint(msg.sender, amountSBTToBeMinted);
 
-        if(!minted) {
+        if (!minted) {
             revert StablecoinSkeleton_MintingFailed();
         }
     }
@@ -94,7 +110,7 @@ contract StablecoinSkeleton is ReentrancyGuard {
     function burnSBT(uint256 _amount) public collateralMoreThanZero(_amount) {
         s_SBTMinted[msg.sender] -= _amount;
         bool success = i_stablecoin.transferFrom(msg.sender, address(this), _amount);
-        if(!success){
+        if (!success) {
             revert StablecoinSkeleton_TransferFailed();
         }
 
@@ -103,10 +119,13 @@ contract StablecoinSkeleton is ReentrancyGuard {
         revertIfHealthFactorDoesNotWork(msg.sender);
     }
 
-    function liquidate(address _collateral, address _user, uint256 debtToCover) external collateralMoreThanZero(debtToCover) {
+    function liquidate(address _collateral, address _user, uint256 debtToCover)
+        external
+        collateralMoreThanZero(debtToCover)
+    {
         uint256 startingUserHealthFactor = healthFactor(_user);
 
-        if(startingUserHealthFactor >= 1e18) {
+        if (startingUserHealthFactor >= 1e18) {
             revert StablecoinSkeleton_HealthFactorIsFine();
         }
 
@@ -114,17 +133,22 @@ contract StablecoinSkeleton is ReentrancyGuard {
 
         uint256 bonusCollateral = (tokenAmountFromDebtCovered * 10) / 100;
 
-        uint256 totalCollateralToRedeem = tokenAmountFromDebtCovered  + bonusCollateral;
+        uint256 totalCollateralToRedeem = tokenAmountFromDebtCovered + bonusCollateral;
     }
 
-    function _redeemCollateral(address AddressforTokenCollateral, uint256 amountofCollateral, address from, address to) private {}
+    function _redeemCollateral(address AddressforTokenCollateral, uint256 amountofCollateral, address from, address to)
+        private {}
 
-    function getAccountInformation(address user) private view returns(uint256 totalSBTMinted, uint256 collateralValueInUSD) {
+    function getAccountInformation(address user)
+        private
+        view
+        returns (uint256 totalSBTMinted, uint256 collateralValueInUSD)
+    {
         totalSBTMinted = s_SBTMinted[user];
         collateralValueInUSD = getAccountCollateralValue(user);
     }
 
-    function healthFactor(address _user) private view returns(uint256) {
+    function healthFactor(address _user) private view returns (uint256) {
         (uint256 totalSBTMinted, uint256 collateralValueInUSD) = getAccountInformation(_user);
         uint256 collateralAdjustedForThreshold = (collateralValueInUSD * LIQUIDATION_THRESHOLD) / 100;
         return (collateralAdjustedForThreshold * 1e10) / totalSBTMinted;
@@ -133,13 +157,13 @@ contract StablecoinSkeleton is ReentrancyGuard {
     function revertIfHealthFactorDoesNotWork(address user) internal view {
         uint256 userHealthFactor = healthFactor(user);
 
-        if(userHealthFactor < 1) {
+        if (userHealthFactor < 1) {
             revert StablecoinSkeleton_BreaksHealthFactor(userHealthFactor);
         }
     }
-    
+
     function getAccountCollateralValue(address user) public view returns (uint256 totalCollateralValueInUSD) {
-        for(uint256 i = 0; i < s_collateralTokens.length; i++) {
+        for (uint256 i = 0; i < s_collateralTokens.length; i++) {
             address token = s_collateralTokens[i];
             uint256 amount = s_collateralDeposit[user][token];
             totalCollateralValueInUSD += getUSDValue(token, amount);
@@ -148,11 +172,11 @@ contract StablecoinSkeleton is ReentrancyGuard {
         return totalCollateralValueInUSD;
     }
 
-    function getUSDValue(address token, uint256 amount) public view returns(uint256) {
+    function getUSDValue(address token, uint256 amount) public view returns (uint256) {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeed[token]);
 
         (, int256 answer,,,) = priceFeed.latestRoundData();
 
-        return((uint256(answer) * 1e10) * amount) / 1e18;
+        return ((uint256(answer) * 1e10) * amount) / 1e18;
     }
 }
