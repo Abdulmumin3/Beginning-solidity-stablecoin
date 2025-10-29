@@ -2,7 +2,7 @@ name: Daily Auto Push (even if no changes)
 
 on:
   schedule:
-    - cron: "0 13 * * *" # Runs once daily at 1 PM UTC
+    - cron: "0 9 * * *"  # Every day at 9AM UTC
   workflow_dispatch:       # Allows manual trigger too
 
 jobs:
@@ -17,13 +17,13 @@ jobs:
 
       - name: Configure Git
         run: |
-          git config --global user.name "olawale"
-          git config --global user.email "abdulmumeenadesoye19@gmail.com"
+          git config user.name "Abdulmumin3"
+          git config user.email "abdulmumeenadesoye19@gmail.com"
 
       - name: Force daily commit
         run: |
           echo "Last automated commit: $(date)" > .last_autopush.txt
           git add .last_autopush.txt
-          git commit -m "Daily auto push $(date '+%Y-%m-%d %H:%M:%S')" 
+          git commit -m "Auto update: $(date '+%A, %B %d, %Y')"
           git push origin HEAD:main
 
