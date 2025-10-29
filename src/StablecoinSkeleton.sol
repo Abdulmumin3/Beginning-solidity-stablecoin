@@ -101,4 +101,57 @@ contract StablecoinSkeleton is ReentrancyGuard {
 
         revertIfHealthFactorDoesNotWork(msg.sender);
     }
+
+    function liquidate(address _collateral, address _user, uint256 debtToCover) external collateralMoreThanZero(debtToCover) {
+        uint256 startingUserHealthFactor = healthFactor(_user);
+
+        if(startingUserHealthFactor >= 1e18) {
+            revert StablecoinSkeleton__HealthFactorIsFine();
+        }
+
+        uint256 tokenAmountFromDebtCovered = getUSDValue(_collateral, debtToCover);
+
+        uint256 bonusCollateral = (tokenAmountFromDebtCovered * 10) / 100;
+
+        uint256 totalCollateralToRedeem = tokenAmountFromDebtCovered  + bonusCollateral;
+    }
+
+    function _redeemCollateral(address AddressforTokenCollateral, uint256 amountofCollateral, address from, address to) private {}
+
+    function getAccountInformation(address user) private view returns(uint256 totalSBTMinted, uint256 collateralValueInUSD) {
+        totalSBTMinted = s_SBTminted[user];
+        collateralValueInUSD = getAccountCollateralValue(user);
+    }
+
+    function healthFactor(address _user) private view returns(uint256) {
+        (uint256 totalSBTMinted, uint256 collateralValueInUSD) = getAccountInformation(_user);
+        uint256 collateralAdjustedForThreshold = (collateralValueInUSD * LIQUIDITATION_THRESHOLD) / 100;
+        return (collateralAdjustedForThreshold * 1e10) / totalSBTMinted;
+    }
+
+    function revertIfHealthFactorDoesNotWork(address user) internal view {
+        uint256 userHealthFactor = healthFactor(user);
+
+        if(userHealthFactor < 1) {
+            revert StablecoinSkeleton__BreaksHealthFactor(userHealthFactor);
+        }
+    }
+    
+    function getAccountCollateralValue(address user) public view returns (uint256 totalCollateralValueInUSD) {
+        for(uint256 i = 0; i < s_collateralTokens.length; i++) {
+            address token = s_collateralTokens[i];
+            uint256 amount = s_collateralDeposit[user][token];
+            totalCollateralValueInUSD += getUSDValue(token, amount);
+        }
+
+        return totalCollateralValueInUSD;
+    }
+
+    function getUSDValue(address token, uint256 amount) public view returns(uint256) {
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeed[token]);
+
+        (, int256 answer,,,) = priceFeed.latestRoundData();
+
+        return((uint256(answer) * 1e10) * amount) / 1e18;
+    }
 }
